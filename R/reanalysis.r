@@ -1,136 +1,46 @@
 
-#' get reanalysis data from NCEP
-#' @param poly an sf polygon object that defines the required region in lat long
-#' @param lubri a lubridate object or a list of two objects defining the time domain or the query
-#' @importFrom lubridate year
-#' @importFrom RCurl getURL
-#' @export
-get_reanalysis_t <- function(poly,lubri)
-{
-
-  y=year(lubri$y)
-  y=unique(y)
-
-  for(yeari in y)
-  {
-    tpath=paste0('ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/air.2m.gauss.',yeari,'.nc')
-    rhpath=paste0('ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis/surface/rhum.sig995.',yeari,'.nc')
-    vpath=paste0('ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis/surface/vwnd.sig995.',yeari,'.nc')
-    upath=paste0('ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis/surface/uwnd.sig995.',yeari,'.nc')
-    gpath=ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis.dailyavgs/surface_gauss/gflux.sfc.gauss.2006.nc
-    rnpath=ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis.dailyavgs/surface_gauss/dswrf.sfc.gauss.1996.nc
-
-    T=getURL(tpath)
-  }
-}
 
 
 #' get reanalysis data from NCEP
-#' @param poly an sf polygon object that defines the required region in lat long
+#' @param pt an sf point object in lat long
 #' @param lubri a lubridate object or a list of two objects defining the time domain or the query
 #' @importFrom lubridate year
-#' @importFrom RCurl getURL
+#' @import dplyr
 #' @import ncdf4
 #' @export
-get_reanalysis_t <- function(poly,lubri)
+get_reanalysis <- function(pt,prefix,fname,varname)
 {
-  y=year(lubri$y)
-  y=unique(y)
-
-  for(yeari in y)
-  {
-    path=paste0('ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/air.2m.gauss.',yeari,'.nc')
-
-    if(!file.exists(paste0('air.2m.gauss.',yeari,'.nc')))
+    if(!file.exists(fname))
     {
-      T=getURL(path)
+        system(paste0("wget ",prefix,fname))
     }
+    
+    if(file.exists(fname))
+    {
+        
+        nc=nc_open(fname)
+        tt=ncvar_get(nc,varid="time")
+        tformat= ymd_hms("1800-01-01 00:00:00")+hours(tt)
+        
+        lat=ncvar_get(nc,varid="lat")
+        lon=ncvar_get(nc,varid="lon")
+        gr=expand.grid(lon,lat)
+        colnames(gr) <- c("lon","lat")
+        grsf <- st_as_sf(gr,coords=c(1,2)) %>% st_set_crs(.,4236)
+        ncpt=grsf[which.min(st_distance(grsf,pt)),]
+        nlon=which(lon==st_coordinates(ncpt)[1])
+        nlat=which(lat==st_coordinates(ncpt)[2])
+        
+        
+        ind <- get_lon_lat(nc,pt)
+        
+        x <- ncvar_get(nc,varname,start=c(ind[[1]],ind[[2]],1),count=c(1,1,-1))
+        df <- data.frame(time=tformat,var=varname,value=x)
+    } else {cat("problems downloading from NCEP server")}
+    
+      
+nc_close(nc)
 
-  }
-
+return(df)
 }
 
-
-#' get reanalysis data from NCEP
-#' @param poly an sf polygon object that defines the required region in lat long
-#' @param lubri a lubridate object or a list of two objects defining the time domain or the query
-#' @importFrom lubridate year
-#' @importFrom RCurl getURL
-#' @export
-get_reanalysis_rh <- function(poly,lubri)
-{
-
-  y=year(lubri$y)
-  y=unique(y)
-
-  for(yeari in y)
-  {
-    path=paste0('ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis/surface/rhum.sig995.',yeari,'.nc')
-    RH=getURL(path)
-  }
-}
-
-
-#' get reanalysis data from NCEP
-#' @param poly an sf polygon object that defines the required region in lat long
-#' @param lubri a lubridate object or a list of two objects defining the time domain or the query
-#' @importFrom lubridate year
-#' @importFrom RCurl getURL
-#' @export
-get_reanalysis_w <- function(poly,lubri)
-{
-
-  y=year(lubri$y)
-  y=unique(y)
-
-  for(yeari in y)
-  {
-    vpath=paste0('ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis/surface/vwnd.sig995.',yeari,'.nc')
-    upath=paste0('ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis/surface/uwnd.sig995.',yeari,'.nc')
-
-    V=getURL(vpath)
-    U=getURL(upath)
-
-  }
-}
-
-
-#' get reanalysis data from NCEP
-#' @param poly an sf polygon object that defines the required region in lat long
-#' @param lubri a lubridate object or a list of two objects defining the time domain or the query
-#' @importFrom lubridate year
-#' @importFrom RCurl getURL
-#' @export
-get_reanalysis_g <- function(poly,lubri)
-{
-
-  y=year(lubri$y)
-  y=unique(y)
-
-  for(yeari in y)
-  {
-    path=paste0('ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis.dailyavgs/surface_gauss/gflux.sfc.gauss.',yeari,'.nc')
-
-    G=getURL(path)
-  }
-}
-
-
-#' get reanalysis data from NCEP
-#' @param poly an sf polygon object that defines the required region in lat long
-#' @param lubri a lubridate object or a list of two objects defining the time domain or the query
-#' @importFrom lubridate year
-#' @importFrom RCurl getURL
-#' @export
-get_reanalysis_rn <- function(poly,lubri)
-{
-
-  y=year(lubri$y)
-  y=unique(y)
-
-  for(yeari in y)
-  {
-    path=paste0('ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis.dailyavgs/surface_gauss/dswrf.sfc.gauss.',yeari,'.nc')
-    Rn=getURL(path)
-  }
-}
